@@ -1,0 +1,211 @@
+'use strict'
+
+process.env.COMPANY = 'default'
+
+const Lab = require('lab')
+const Code = require('code')
+const Lodash = require('lodash')
+const seneca = require('../seneca')
+const Async = require('async')
+
+const lab = exports.lab = Lab.script()
+const expect = Code.expect
+const describe = lab.describe
+const before = lab.before
+const after = lab.after
+const it = lab.it
+
+var rows = [
+  { name: 'test0', phone: '0901010100', email: 'test0@gmail.com', address: '123 Penn.', status: 'active' },
+  { name: 'test1', phone: '0901010101', email: 'test1@gmail.com', address: '123 Penn.', status: 'active' },
+  { name: 'test2', phone: '0901010102', email: 'test2@gmail.com', address: '123 Penn.', status: 'active' },
+  { name: 'test3', phone: '0901010103', email: 'test3@gmail.com', address: '123 Penn.', status: 'active' },
+  { name: 'test4', phone: '0901010104', email: 'test4@gmail.com', address: '123 Penn.', status: 'active' },
+  { name: 'test5', phone: '0901010105', email: 'test5@gmail.com', address: '123', status: 'inactive' },
+  { name: 'test6', phone: '0901010106', email: 'test6@gmail.com', address: '123', status: 'inactive' },
+  { name: 'test7', phone: '0901010107', email: 'test7@gmail.com', address: '123', status: 'inactive' },
+  { name: 'test8', phone: '0901010108', email: 'test8@gmail.com', address: '123', status: 'inactive' },
+  { name: 'test9', phone: '0901010109', email: 'test8@gmail.com', address: '123', status: 'inactive' },
+  { name: 'testa', phone: '0901010110', email: 'test10@gmail.com', address: '123', status: 'active' },
+  { name: 'testb', phone: '0901010111', email: 'test11@gmail.com', address: '123', status: 'active' }
+]
+
+describe('role:customer, cmd:find|get', function () {
+  var data = []
+  before(function (done) {
+    Async.map(rows, function (item, mapNext) {
+      seneca.act('role:customer, cmd:add', item, function (err, respond) {
+        mapNext(null, respond.customer.data$())
+      })
+    }, function (err, results) {
+      data = results
+      // console.log(data)
+      seneca.act('role:customer, cmd:delete', { id: data[ 8 ] }, function (err, respond) {
+        data[ 8 ] = respond.customer.data$()
+        seneca.act('role:customer, cmd:delete', { id: data[ 9 ] }, function (err, respond) {
+          data[ 9 ] = respond.customer.data$()
+          done()
+        })
+      })
+    })
+  })
+
+  after(function (done) {
+    seneca.make$('company', 'customer').native$(function (err, db) {
+      var collection = db.collection('company_customer');
+      collection.drop()
+      done()
+    })
+  })
+
+  function find_customer (data, callback) {
+    seneca.act('role:customer, cmd:find', data, callback)
+  }
+
+  it('can find by single field', function (done) {
+    find_customer({ id: data[ 3 ].id, query: { sort$: { name: 1 } } }, function (err, respond) {
+      expect(err).not.exist()
+      expect(respond.ok).to.be.true()
+      expect(respond.customer.data$()).to.include(data[ 3 ])
+
+      find_customer({ status: data[ 5 ].status, query: { sort$: { name: 1 } } }, function (err, respond) {
+        expect(err).not.exist()
+        expect(respond.ok).to.be.true()
+        expect(respond.customer.data$()).to.include(data[ 5 ])
+
+        find_customer({ status: data[ 8 ].status, query: { sort$: { name: 1 } } }, function (err, respond) {
+          expect(err).not.exist()
+          expect(respond.ok).to.be.true()
+          expect(respond.customer.data$()).to.include(data[ 8 ])
+          done()
+        })
+      })
+    })
+  })
+
+  it('can find by multiple fields', function (done) {
+    find_customer({ id: data[ 2 ].id, name: data[ 2 ].name }, function (err, respond) {
+      expect(err).not.exist()
+      expect(respond.ok).to.be.true()
+      expect(respond.customer.data$()).to.include(data[ 2 ])
+
+      find_customer(data[ 6 ], function (err, respond) {
+        expect(err).not.exist()
+        expect(respond.ok).to.be.true()
+        expect(respond.customer.data$()).to.include(data[ 6 ])
+        done()
+      })
+    })
+  })
+
+  it('can find by query', function (done) {
+    find_customer({ query: { name: data[ 4 ].name } }, function (err, respond) {
+      expect(err).not.exist()
+      expect(respond.ok).to.be.true()
+      expect(respond.customer.data$()).to.include(data[ 4 ])
+      done()
+    })
+  })
+
+  it('can find with no result', function (done) {
+    find_customer({ id: data[ 1 ].id, name: data[ 2 ].name }, function (err, respond) {
+      expect(err).not.exist()
+      expect(respond.ok).to.be.true()
+      expect(respond.customer).to.not.exist()
+      done()
+    })
+  })
+
+  it('just returns one and only one entity', function (done) {
+    find_customer({ status: data[ 8 ].status }, function (err, respond) {
+      expect(err).not.exist()
+      expect(respond.ok).to.be.true()
+      if (respond.customer.id == data[ 8 ].id) {
+        expect(respond.customer.data$()).to.include(data[ 8 ])
+      } else {
+        expect(respond.customer.data$()).to.include(data[ 9 ])
+      }
+      done()
+    })
+  })
+
+  //--------------------------------------------------------------------------------------------------------------------
+
+  function get_customers (data, callback) {
+    seneca.act('role:customer, cmd:get', data, callback)
+  }
+
+  it('can get by single field', function (done) {
+    get_customers({ address: data[ 1 ].address }, function (err, respond) {
+      expect(err).not.exist()
+      expect(respond.ok).to.be.true()
+      expect(respond.customers.length).to.equal(5)
+
+      get_customers({ status: data[ 5 ].status }, function (err, respond) {
+        expect(err).not.exist()
+        expect(respond.ok).to.be.true()
+        expect(respond.customers.length).to.equal(3)
+
+        get_customers({ status: data[ 9 ].status }, function (err, respond) {
+          expect(err).not.exist()
+          expect(respond.ok).to.be.true()
+          expect(respond.customers.length).to.equal(2)
+          done()
+        })
+      })
+    })
+  })
+
+  it('can get customer active by single field', function (done) {
+    get_customers({ address: data[ 5 ].address, query: { sort$: { name: 1 } } }, function (err, respond) {
+      expect(err).not.exist()
+      expect(respond.ok).to.be.true()
+      expect(respond.customers.length).to.equal(2)
+      expect(respond.customers[ 0 ].data$()).to.include(data[ 10 ])
+      expect(respond.customers[ 1 ].data$()).to.include(data[ 11 ])
+      done()
+    })
+  })
+
+  it('can get customer active by multiple field', function (done) {
+    get_customers({ address: data[ 0 ].address, status: data[ 0 ].status, query: { sort$: { name: 1 } } }, function (err, respond) {
+      expect(err).not.exist()
+      expect(respond.ok).to.be.true()
+      expect(respond.customers.length).to.equal(5)
+
+      get_customers({ address: data[ 5 ].address, status: data[ 5 ].status }, function (err, respond) {
+        expect(err).not.exist()
+        expect(respond.ok).to.be.true()
+        expect(respond.customers.length).to.equal(3)
+
+        get_customers(data[ 9 ], function (err, respond) {
+          expect(err).not.exist()
+          expect(respond.ok).to.be.true()
+          expect(respond.customers[ 0 ].data$()).to.include(data[ 9 ])
+          done()
+        })
+      })
+    })
+  })
+
+  it('can find by query use sort$', function (done) {
+    get_customers({ query: { address: '123', sort$: { name: -1 } } }, function (err, respond) {
+      //console.log(respond)
+      expect(err).not.exist()
+      expect(respond.ok).to.be.true()
+      expect(respond.customers[ 0 ].data$()).to.include(data[ 11 ])
+      expect(respond.customers[ 1 ].data$()).to.include(data[ 10 ])
+      done()
+    })
+  })
+
+  it('can find by query use sort$ and limit$', function (done) {
+    get_customers({ query: { status: 'active', sort$: { name: -1 }, limit$: 2 } }, function (err, respond) {
+      expect(err).not.exist()
+      expect(respond.ok).to.be.true()
+      expect(respond.customers[ 0 ].data$()).to.include(data[ 11 ])
+      expect(respond.customers[ 1 ].data$()).to.include(data[ 10 ])
+      done()
+    })
+  })
+})

@@ -1,0 +1,18 @@
+FROM docker-registry.ntworld.net/quanly-server-based
+
+ADD  ./app/quanly/yarn.lock    /code
+ADD  ./app/quanly/package.json /code
+RUN  yarn install
+
+ADD  ./app/quanly/test     /code/test
+ADD  ./app/quanly/src      /code/src
+ADD  ./app/quanly/ui       /code/ui
+COPY ./app/quanly/packages /code/packages
+COPY ./app/quanly/messages /code/messages
+
+ADD  ./app/quanly/scripts/run-build-production.sh /code
+RUN  mv run-build-production.sh run
+RUN  chmod u+x                                    /code/run
+
+ENTRYPOINT ["/bin/bash", "/code/run"]
+CMD ["/code/run"]

@@ -1,0 +1,47 @@
+node('docker') {
+    try {
+        stage 'Checkout'
+        pulledCommit = pullChanges("master")
+        node('production') {
+            pullChanges("master")
+        }
+
+        stage 'Build'
+        sh './scripts/ci/production-build.sh'
+
+        stage 'Test'
+        sh './scripts/ci/production-test.sh'
+
+        stage 'Push'
+        sh './scripts/ci/production-push.sh'
+
+        stage 'Deploy'
+        node('production') {
+            sh './scripts/ci/production-pull.sh'
+            sh './scripts/ci/production-deploy.sh'
+        }
+    } catch (error) {
+        throw error
+    }
+}
+
+def pullChanges(branch) {
+    checkout([$class: 'GitSCM', branches: [[name: "refs/heads/$branch"]], browser: [$class: 'BitbucketWeb', repoUrl: 'https://bitbucket.org/ntworld/quanly/src'], doGenerateSubmoduleConfigurations: false, extensions: [], submoduleCfg: [], userRemoteConfigs: [[credentialsId: '263d78be-869d-41b2-b8c8-0a8694413c2f', url: 'git@bitbucket.org:ntworld/quanly.git']]])
+    return [
+        message: getCommitMessage(),
+        sha: getCommitSha(),
+        author: getCommitAuthor()
+    ]
+}
+
+def getCommitSha() {
+    return sh(returnStdout: true, script: 'git rev-parse HEAD').trim()
+}
+
+def getCommitMessage() {
+    return sh(returnStdout: true, script: 'git --no-pager show -s --format=\'%B\' $(git rev-parse HEAD) | head -1').trim()
+}
+
+def getCommitAuthor() {
+    return sh(returnStdout: true, script: 'git --no-pager show -s --format=\'%an <%ae>\' $(git rev-parse HEAD)').trim()
+}

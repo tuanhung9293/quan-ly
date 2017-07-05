@@ -1,0 +1,97 @@
+version: '2'
+services:
+  mongo:
+    container_name: quanly-dev-mongo
+    image: mongo
+    ports:
+      - "60017:27017"
+    networks:
+      back:
+        ipv4_address: 172.16.237.67
+
+  redis:
+    container_name: quanly-dev-redis
+    image: redis
+    ports:
+      - "60079:6379"
+    networks:
+      back:
+        ipv4_address: 172.16.237.68
+
+  quanly-dev-server:
+    container_name: quanly-dev-server
+    build:
+      context: .
+      dockerfile: ./app/quanly/Dockerfiles/dev
+    environment:
+      MONGO_URI: 'mongodb://172.16.237.67:27017'
+      NODE_ENV: 'development'
+      CONTAINER_RUN: 'server'
+      COMPANY: 'default'
+    ports:
+      - "60001:60001"
+    links:
+      - quanly-dev-server-build
+      - mongo
+      - redis
+    volumes:
+      - ./data:/data
+      - ./app/quanly/test:/code/test
+      - ./app/quanly/src:/code/src
+      - ./app/quanly/packages:/code/packages
+      - ./app/quanly/messages:/code/messages
+    tty: true
+    networks:
+      back:
+        ipv4_address: 172.16.237.61
+
+  quanly-dev-ui:
+    container_name: quanly-dev-ui
+    build:
+      context: .
+      dockerfile: ./app/quanly/Dockerfiles/dev
+    environment:
+      NODE_ENV: 'development'
+      CONTAINER_RUN: 'ui'
+      COMPANY: 'default'
+    ports:
+      - "60002:60002"
+    volumes:
+      - ./app/quanly/ui:/code/ui
+      - ./app/quanly/packages:/code/packages
+    tty: true
+    networks:
+      back:
+        ipv4_address: 172.16.237.62
+
+  quanly-dev-server-build:
+    container_name: quanly-dev-server-build
+    build:
+      context: .
+      dockerfile: ./app/quanly/Dockerfiles/dev
+    environment:
+      NODE_ENV: 'development'
+      CONTAINER_RUN: 'server-build'
+      COMPANY: 'default'
+    links:
+      - mongo
+      - redis
+    volumes:
+      - ./data:/data
+      - ./app/quanly/test:/code/test
+      - ./app/quanly/src:/code/src
+      - ./app/quanly/packages:/code/packages
+      - ./app/quanly/messages:/code/messages
+    tty: true
+    networks:
+      back:
+        ipv4_address: 172.16.237.63
+
+networks:
+  back:
+    driver: bridge
+    ipam:
+      driver: default
+      config:
+      - subnet: 172.16.237.0/24
+        gateway: 172.16.237.1

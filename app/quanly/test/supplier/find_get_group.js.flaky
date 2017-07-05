@@ -1,0 +1,187 @@
+'use strict'
+
+const Lab = require('lab')
+const Code = require('code')
+const Lodash = require('lodash')
+const seneca = require('../seneca')
+const Async = require('async')
+
+const lab = exports.lab = Lab.script()
+const expect = Code.expect
+const describe = lab.describe
+const before = lab.before
+const after = lab.after
+const it = lab.it
+
+var rows = [
+  { name: 'test0', status: 'active' },
+  { name: 'test1', status: 'active' },
+  { name: 'test2', status: 'active' },
+  { name: 'test3', status: 'active' },
+  { name: 'test4', status: 'active' },
+  { name: 'test5', status: 'inactive' },
+  { name: 'test6', status: 'inactive' },
+  { name: 'test7', status: 'inactive' },
+  { name: 'test8', status: 'inactive' },
+  { name: 'test9', status: 'inactive' },
+  { name: 'testa', status: 'active' },
+  { name: 'testb', status: 'active' }
+]
+
+describe('role:supplier, cmd:find|get-group', function () {
+  var data = []
+
+  before(function (done) {
+    Async.map(
+      rows,
+      function (item, returnMap) {
+        seneca.act('role:supplier, cmd:add-group', item, function (err, respond) {
+          returnMap(null, respond.supplier_group.data$())
+        })
+      },
+      function (err, results) {
+        data = results
+        seneca.act('role:supplier, cmd:delete-group', { id: data[ 8 ] }, function (err, respond) {
+          data[ 8 ] = respond.supplier_group.data$()
+          seneca.act('role:supplier, cmd:delete-group', { id: data[ 9 ] }, function (err, respond) {
+            data[ 9 ] = respond.supplier_group.data$()
+            done()
+          })
+        })
+      }
+    )
+  })
+
+  after(function (done) {
+    seneca.make$('company', 'supplier_group').native$(function (err, db) {
+      var collection = db.collection('company_supplier_group');
+      collection.drop()
+      done()
+    })
+  })
+
+  function find_supplier_group (data, callback) {
+    seneca.act('role:supplier, cmd:find-group', data, callback)
+  }
+
+  it('can find by single field', function (done) {
+    find_supplier_group({ id: data[ 3 ].id }, function (err, respond) {
+      expect(err).not.exist()
+      expect(respond.ok).to.be.true()
+      expect(respond.supplier_group.data$()).to.include(data[ 3 ])
+
+      find_supplier_group({ name: data[ 4 ].name }, function (err, respond) {
+        expect(err).not.exist()
+        expect(respond.ok).to.be.true()
+        expect(respond.supplier_group.data$()).to.include(data[ 4 ])
+
+        find_supplier_group({ status: data[ 8 ].status }, function (err, respond) {
+          expect(err).not.exist()
+          expect(respond.ok).to.be.true()
+          expect(respond.supplier_group.data$()).to.include(data[ 8 ])
+          done()
+        })
+      })
+    })
+  })
+
+  it('can find by multiple fields', function (done) {
+    find_supplier_group({ id: data[ 2 ].id, name: data[ 2 ].name }, function (err, respond) {
+      expect(err).not.exist()
+      expect(respond.ok).to.be.true()
+      expect(respond.supplier_group.data$()).to.include(data[ 2 ])
+
+      find_supplier_group({ name: data[ 6 ].name, status: data[ 7 ].status }, function (err, respond) {
+        expect(err).not.exist()
+        expect(respond.ok).to.be.true()
+        expect(respond.supplier_group.data$()).to.include(data[ 6 ])
+        done()
+      })
+    })
+  })
+
+  it('can find a supplier group by query', function (done) {
+    find_supplier_group({ query: { name: data[ 4 ].name } }, function (err, respond) {
+      expect(err).not.exist()
+      expect(respond.ok).to.be.true()
+      expect(respond.supplier_group.data$()).to.include(data[ 4 ])
+      done()
+    })
+  })
+
+  it('can find with no result', function (done) {
+    find_supplier_group({ id: data[ 1 ].id, name: data[ 2 ].name }, function (err, respond) {
+      expect(err).not.exist()
+      expect(respond.ok).to.be.true()
+      expect(respond.supplier_group).to.not.exist()
+      done()
+    })
+  })
+
+  it('just returns one and only one entity', function (done) {
+    find_supplier_group({ status: data[ 8 ].status }, function (err, respond) {
+      expect(err).not.exist()
+      expect(respond.ok).to.be.true()
+      if (respond.supplier_group.id == data[ 8 ].id) {
+        expect(respond.supplier_group.data$()).to.include(data[ 8 ])
+      } else {
+        expect(respond.supplier_group.data$()).to.include(data[ 9 ])
+      }
+      done()
+    })
+  })
+
+  //--------------------------------------------------------------------------------------------------------------------
+
+  function get_supplier_groups (data, callback) {
+    seneca.act('role:supplier, cmd:get-group', data, callback)
+  }
+
+  it('can get by single field', function (done) {
+    get_supplier_groups({ name: data[ 1 ].name }, function (err, respond) {
+      expect(err).not.exist()
+      expect(respond.ok).to.be.true()
+      expect(respond.supplier_groups[ 0 ].data$()).to.include(data[ 1 ])
+
+      get_supplier_groups({ status: data[ 5 ].status }, function (err, respond) {
+        expect(err).not.exist()
+        expect(respond.ok).to.be.true()
+        expect(respond.supplier_groups.length).to.equal(3)
+
+        get_supplier_groups({ status: data[ 9 ].status }, function (err, respond) {
+          expect(err).not.exist()
+          expect(respond.ok).to.be.true()
+          expect(respond.supplier_groups.length).to.equal(2)
+          done()
+        })
+      })
+    })
+  })
+
+  it('can get supplier groups by multiple field', function (done) {
+    get_supplier_groups({ name: data[ 0 ].name, status: data[ 1 ].status }, function (err, respond) {
+      expect(err).not.exist()
+      expect(respond.ok).to.be.true()
+      expect(respond.supplier_groups.length).to.equal(1)
+      expect(respond.supplier_groups[ 0 ].data$()).to.include(data[ 0 ])
+
+      get_supplier_groups({ name: data[ 5 ].name, status: data[ 5 ].status }, function (err, respond) {
+        expect(err).not.exist()
+        expect(respond.ok).to.be.true()
+        expect(respond.supplier_groups.length).to.equal(1)
+        expect(respond.supplier_groups[ 0 ].data$()).to.include(data[ 5 ])
+        done()
+      })
+    })
+  })
+
+  it('can find supplier groups by query', function (done) {
+    get_supplier_groups({ query: { name: 'test1' } }, function (err, respond) {
+      expect(err).not.exist()
+      expect(respond.ok).to.be.true()
+      expect(respond.supplier_groups[ 0 ].data$()).to.include(data[ 1 ])
+      expect(respond.supplier_groups.length).to.equal(1)
+      done()
+    })
+  })
+})

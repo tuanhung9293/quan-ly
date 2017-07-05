@@ -1,0 +1,21 @@
+{
+  "name": "argument-validator",
+  "version": "0.1.0",
+  "scripts": {
+    "start": "./node_modules/.bin/fsmonitor -s -p '+*.js' npm test",
+    "test": "./node_modules/.bin/lab -c"
+  },
+  "main": "argument-validator.js",
+  "dependencies": {
+    "async": "^2.1.5",
+    "lodash": "^4.17.4",
+    "seneca": "^3.3.0",
+    "seneca-entity": "^2.0.0",
+    "validator": "^7.0.0"
+  },
+  "devDependencies": {
+    "code": "^4.0.0",
+    "fsmonitor": "^0.2.4",
+    "lab": "^13.0.1"
+  }
+}

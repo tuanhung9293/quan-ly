@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<head>
+    <meta charset="utf-8">
+    <title></title>
+
+    <meta name="description" content="">
+    <meta name="author" content="timugz">
+    <meta name="robots" content="noindex, nofollow">
+    <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1.0">
+
+    <link rel="apple-touch-icon" sizes="57x57" href="<%= assetsRoot %>/favicons/fa-rocket/apple-icon-57x57.png">
+    <link rel="apple-touch-icon" sizes="60x60" href="<%= assetsRoot %>/favicons/fa-rocket/apple-icon-60x60.png">
+    <link rel="apple-touch-icon" sizes="72x72" href="<%= assetsRoot %>/favicons/fa-rocket/apple-icon-72x72.png">
+    <link rel="apple-touch-icon" sizes="76x76" href="<%= assetsRoot %>/favicons/fa-rocket/apple-icon-76x76.png">
+    <link rel="apple-touch-icon" sizes="114x114" href="<%= assetsRoot %>/favicons/fa-rocket/apple-icon-114x114.png">
+    <link rel="apple-touch-icon" sizes="120x120" href="<%= assetsRoot %>/favicons/fa-rocket/apple-icon-120x120.png">
+    <link rel="apple-touch-icon" sizes="144x144" href="<%= assetsRoot %>/favicons/fa-rocket/apple-icon-144x144.png">
+    <link rel="apple-touch-icon" sizes="152x152" href="<%= assetsRoot %>/favicons/fa-rocket/apple-icon-152x152.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="<%= assetsRoot %>/favicons/fa-rocket/apple-icon-180x180.png">
+    <link rel="icon" type="image/png" sizes="192x192" href="<%= assetsRoot %>/favicons/fa-rocket/android-icon-192x192.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="<%= assetsRoot %>/favicons/fa-rocket/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="96x96" href="<%= assetsRoot %>/favicons/fa-rocket/favicon-96x96.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="<%= assetsRoot %>/favicons/fa-rocket/favicon-16x16.png">
+    <link rel="manifest" href="<%= assetsRoot %>/favicons/fa-rocket/manifest.json">
+    <meta name="msapplication-TileColor" content="#ffffff">
+    <meta name="msapplication-TileImage" content="<%= assetsRoot %>/favicons/fa-rocket/ms-icon-144x144.png">
+
+    <link rel="stylesheet" href="<%= assetsRoot %>/css/flexbox.css">
+    <link rel="stylesheet" href="<%= assetsRoot %>/OneUI/backend/css/bootstrap.min.css">
+    <link rel="stylesheet" href="<%= assetsRoot %>/OneUI/backend/css/oneui.css">
+    <link rel="stylesheet" href="<%= assetsRoot %>/css/custom.css">
+    <link rel="stylesheet" href="<%= assetsRoot %>/OneUI/backend/css/react-select.css">
+</head>
+<body data-theme="<%= theme %>">
+<div id="root"></div>
+<script>
+    var VERSION     = '<%= version %>';
+    var CONFIG_FILE = '<%= uiConfigFile %>';
+    var LOCALE      = '<%= defaultLocale %>';
+    var LOCALE_FILE = '<%= localeRoot %>';
+</script>
+<script src="https://cdn.polyfill.io/v2/polyfill.js?features=default,Array.prototype.slice,Array.prototype.contains,DOMTokenList,fetch,Intl.~locale.<%= defaultLocale %>"></script>
+<script type="text/javascript" src="<%= jsRoot %>/bundle.js"></script>
+</body>
+</html>

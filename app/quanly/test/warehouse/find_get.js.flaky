@@ -1,0 +1,174 @@
+'use strict'
+
+process.env.COMPANY = 'test'
+
+const Lab = require('lab')
+const Code = require('code')
+const Lodash = require('lodash')
+const seneca = require('../seneca')
+
+const lab = exports.lab = Lab.script()
+const expect = Code.expect
+const describe = lab.describe
+const before = lab.before
+const after = lab.after
+const it = lab.it
+
+var rows = [
+  { name: 'test0', phone: '0901010100', email: 'test0@gmail.com', address: '123 Penn.', status: 'active' },
+  { name: 'test1', phone: '0901010101', email: 'test1@gmail.com', address: '123 Penn.', status: 'active' },
+  { name: 'test2', phone: '0901010102', email: 'test2@gmail.com', address: '123 Penn.', status: 'active' },
+  { name: 'test3', phone: '0901010103', email: 'test3@gmail.com', address: '123 Penn.', status: 'active' },
+  { name: 'test4', phone: '0901010104', email: 'test4@gmail.com', address: '123 Penn.', status: 'active' },
+  { name: 'test5', phone: '0901010105', email: 'test5@gmail.com', address: '123', status: 'inactive' },
+  { name: 'test6', phone: '0901010106', email: 'test6@gmail.com', address: '123', status: 'inactive' },
+  { name: 'test7', phone: '0901010107', email: 'test7@gmail.com', address: '123', status: 'inactive' },
+  { name: 'test8', phone: '0901010108', email: 'test8@gmail.com', address: '123', status: 'inactive' },
+  { name: 'test9', phone: '0901010109', email: 'test8@gmail.com', address: '123', status: 'inactive' }
+]
+
+describe('role:warehouse, cmd:find|get', function () {
+  var data = []
+  before(function (done) {
+    rows.map(function (item) {
+      seneca.act('role:warehouse, cmd:add', item, function (err, respond) {
+        data.push(respond.warehouse.data$())
+        if (data.length === rows.length) {
+          data.sort(function (a, b) {
+            if (a.name > b.name) {
+              return 1
+            } else if (a.name < b.name) {
+              return -1
+            }
+            return 0
+          })
+          seneca.act('role:warehouse, cmd:delete', { id: data[ 8 ] }, function (err, respond) {
+            data[8] = respond.warehouse.data$()
+            seneca.act('role:warehouse, cmd:delete', { id: data[ 9 ] }, function (err, respond) {
+              data[9] = respond.warehouse.data$()
+              done()
+            })
+          })
+        }
+      })
+    })
+  })
+
+  after(function(done) {
+    seneca.make$('company', 'warehouse').native$(function (err, db) {
+      var collection = db.collection('company_warehouse');
+      collection.drop()
+      done()
+    })
+  })
+
+  function find_warehouse(data, callback) {
+    seneca.act('role:warehouse, cmd:find', data, callback)
+  }
+
+  function get_warehouses(data, callback) {
+    seneca.act('role:warehouse, cmd:get', data, callback)
+  }
+
+  it('can find by single field', function (done) {
+    find_warehouse({id: data[3].id}, function(err, respond) {
+      expect(err).not.exist()
+      expect(respond.ok).to.be.true()
+      expect(respond.warehouse.data$()).to.include(data[3])
+
+      find_warehouse({name: data[6].name}, function(err, respond) {
+        expect(err).not.exist()
+        expect(respond.ok).to.be.true()
+
+        find_warehouse({phone: data[9].phone, status: data[9].status}, function(err, respond) {
+          expect(err).not.exist()
+          expect(respond.ok).to.be.true()
+          expect(respond.warehouse.data$()).to.include(data[9])
+          done()
+        })
+      })
+    })
+  })
+
+  it('can find by some fields', function (done) {
+    find_warehouse({id: data[2].id, name: data[2].name}, function(err, respond) {
+      expect(err).not.exist()
+      expect(respond.ok).to.be.true()
+      expect(respond.warehouse.data$()).to.include(data[2])
+      done()
+    })
+  })
+
+  it('can find by query', function (done) {
+    find_warehouse({query: {name: data[4].name}}, function(err, respond) {
+      expect(err).not.exist()
+      expect(respond.ok).to.be.true()
+      expect(respond.warehouse.data$()).to.include(data[4])
+      done()
+    })
+  })
+
+  it('can find with no result', function (done) {
+    find_warehouse({id: data[1].id, name: data[2].name}, function(err, respond) {
+      expect(err).not.exist()
+      expect(respond.ok).to.be.true()
+      expect(respond.warehouse).to.not.exist()
+      done()
+    })
+  })
+
+  it('just returns one and only one entity', function (done) {
+    find_warehouse({status: data[8].status}, function(err, respond) {
+      expect(err).not.exist()
+      expect(respond.ok).to.be.true()
+      if (respond.warehouse.id == data[8].id) {
+        expect(respond.warehouse.data$()).to.include(data[8])
+      } else {
+        expect(respond.warehouse.data$()).to.include(data[9])
+      }
+      done()
+    })
+  })
+
+  // -----------------------------------------------------------
+  it('can get by single field', function (done) {
+    get_warehouses({address: data[1].address}, function(err, respond) {
+      expect(err).not.exist()
+      expect(respond.ok).to.be.true()
+      expect(respond.warehouses.length).to.equal(5)
+
+      get_warehouses({status: data[5].status}, function(err, respond) {
+        expect(err).not.exist()
+        expect(respond.ok).to.be.true()
+        expect(respond.warehouses.length).to.equal(3)
+
+        get_warehouses({status: data[9].status}, function(err, respond) {
+          expect(err).not.exist()
+          expect(respond.ok).to.be.true()
+          expect(respond.warehouses.length).to.equal(2)
+          done()
+        })
+      })
+    })
+  })
+
+  it('can find by query use sort$', function (done) {
+    get_warehouses({status: 'deleted', query: {sort$: {name: -1}}}, function(err, respond) {
+      expect(err).not.exist()
+      expect(respond.ok).to.be.true()
+      expect(respond.warehouses[0].data$()).to.include(data[9])
+      expect(respond.warehouses[1].data$()).to.include(data[8])
+      done()
+    })
+  })
+
+  it('can find by query use sort$ and limit$', function (done) {
+    get_warehouses({query: {status: 'active', sort$: {name: -1}, limit$: 2}}, function(err, respond) {
+      expect(err).not.exist()
+      expect(respond.ok).to.be.true()
+      expect(respond.warehouses[0].data$()).to.include(data[4])
+      expect(respond.warehouses[1].data$()).to.include(data[3])
+      done()
+    })
+  })
+})

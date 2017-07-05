@@ -1,0 +1,19 @@
+{
+  "presets": [
+    "es2015-loose",
+    "stage-0",
+    "react"
+  ],
+  "ignore": [
+    "./packages/argument-validator/node_modules",
+  ],
+  "plugins": [
+    [
+      "react-intl",
+      {
+        "messagesDir": "./tmp-messages/",
+        "enforceDescriptions": false
+      }
+    ]
+  ]
+}

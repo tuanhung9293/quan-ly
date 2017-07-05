@@ -1,0 +1,5 @@
+data
+node_modules
+
+app/quanly/node_modules
+app/quanly/packages/argument-validator/node_modules

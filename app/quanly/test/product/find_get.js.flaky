@@ -1,0 +1,225 @@
+'use strict'
+
+process.env.COMPANY = 'default'
+
+const Lab = require('lab')
+const Code = require('code')
+const seneca = require('../seneca')
+const Lodash = require('lodash')
+const Async = require('async')
+
+const lab = exports.lab = Lab.script()
+const expect = Code.expect
+const describe = lab.describe
+const before = lab.before
+const it = lab.it
+const after = lab.after
+
+var rowProducts = [
+  { name: 'test0', unit: 'unit', cost: 10000, price: 30000, status: 'active' },
+  { name: 'test1', unit: 'unit', cost: 10000, price: 30000, status: 'active' },
+  { name: 'test2', unit: 'unit', cost: 20000, price: 40000, status: 'active' },
+  { name: 'test3', unit: 'unit', cost: 20000, price: 40000, status: 'active' },
+  { name: 'test4', unit: 'meter', cost: 30000, price: 40000, status: 'active' },
+  { name: 'test5', unit: 'meter', cost: 30000, price: 40000, status: 'inactive' },
+  { name: 'test6', unit: 'meter', cost: 40000, price: 60000, status: 'inactive' },
+  { name: 'test7', unit: 'meter', cost: 40000, price: 60000, status: 'inactive' },
+  { name: 'test8', unit: 'liter', cost: 10000, price: 40000, status: 'inactive' },
+  { name: 'test9', unit: 'liter', cost: 10000, price: 40000, status: 'inactive' },
+  { name: 'testa', unit: 'liter', cost: 10000, price: 30000, status: 'active' },
+  { name: 'testb', unit: 'liter', cost: 10000, price: 30000, status: 'active' }
+]
+
+describe('role:product, cmd:find|get', function () {
+  after(function(done) {
+    seneca.make$('company', 'product').native$(function (err, db) {
+      var collection = db.collection('company_product');
+      collection.drop()
+      done()
+    })
+  })
+
+  var products = []
+
+  var add_products = function (next) {
+    Async.map(rowProducts, function (item, mapNext) {
+      seneca.act('role:product, cmd:add', item, function (err, respond) {
+        mapNext(null, respond.product.data$())
+      })
+    }, function (err, results) {
+      products = results
+      seneca.act('role:product, cmd:delete', { id: products[ 8 ].id }, function (err, respond) {
+        products[ 8 ] = respond.product.data$()
+        seneca.act('role:product, cmd:delete', { id: products[ 9 ].id }, function (err, respond) {
+          products[ 9 ] = respond.product.data$()
+        })
+      })
+      next()
+    })
+  }
+
+  before(function (done) {
+    Async.waterfall([
+      add_products
+    ], done)
+  })
+
+  function find_product (data, callback) {
+    seneca.act('role:product, cmd:find', data, callback)
+  }
+
+  it('can find by single field', function (done) {
+    find_product({ id: products[ 2 ].id }, function (err, respond) {
+      expect(err).not.exist()
+      expect(respond.ok).to.be.true()
+      expect(respond.product.data$()).to.include(products[ 2 ])
+
+      find_product({ name: products[ 4 ].name }, function (err, respond) {
+        expect(err).not.exist()
+        expect(respond.ok).to.be.true()
+        expect(respond.product.data$()).to.include(products[ 4 ])
+
+        find_product({ status: products[ 8 ].status, query: { sort$: { name: 1 } } }, function (err, respond) {
+          expect(err).not.exist()
+          expect(respond.ok).to.be.true()
+          expect(respond.product.data$()).to.include(products[ 8 ])
+          done()
+        })
+      })
+    })
+  })
+
+  it('can find by multiple fields', function (done) {
+    find_product({ id: products[ 2 ].id, name: products[ 2 ].name }, function (err, respond) {
+      expect(err).not.exist()
+      expect(respond.ok).to.be.true()
+      expect(respond.product.data$()).to.include(products[ 2 ])
+
+      find_product(products[ 6 ], function (err, respond) {
+        expect(err).not.exist()
+        expect(respond.ok).to.be.true()
+        expect(respond.product.data$()).to.include(products[ 6 ])
+        done()
+      })
+    })
+  })
+
+  it('can find by query', function (done) {
+    find_product({ query: { name: products[ 4 ].name } }, function (err, respond) {
+      expect(err).not.exist()
+      expect(respond.ok).to.be.true()
+      expect(respond.product.data$()).to.include(products[ 4 ])
+      done()
+    })
+  })
+
+  it('can find with no result', function (done) {
+    find_product({ id: products[ 1 ].id, name: products[ 2 ].name }, function (err, respond) {
+      expect(err).not.exist()
+      expect(respond.ok).to.be.true()
+      expect(respond.product).to.not.exist()
+      done()
+    })
+  })
+
+  it('just returns one and only one entity', function (done) {
+    find_product({ status: products[ 8 ].status }, function (err, respond) {
+      expect(err).not.exist()
+      expect(respond.ok).to.be.true()
+      if (respond.product.id == products[ 8 ].id) {
+        expect(respond.product.data$()).to.include(products[ 8 ])
+      } else {
+        expect(respond.product.data$()).to.include(products[ 9 ])
+      }
+      done()
+    })
+  })
+
+  // //--------------------------------------------------------------------------------------------------------------------
+
+  function get_products (data, callback) {
+    seneca.act('role:product, cmd:get', data, callback)
+  }
+
+  it('can get by single field', function (done) {
+    get_products({ cost: products[ 2 ].cost, query: { sort$: { name: 1 } } }, function (err, respond) {
+      expect(err).not.exist()
+      expect(respond.ok).to.be.true()
+      expect(respond.products.length).to.equal(2)
+      expect(respond.products[ 0 ].data$()).to.include(products[ 2 ])
+      expect(respond.products[ 1 ].data$()).to.include(products[ 3 ])
+
+      get_products({ status: products[ 5 ].status, query: { sort$: { name: 1 } } }, function (err, respond) {
+        expect(err).not.exist()
+        expect(respond.ok).to.be.true()
+        expect(respond.products.length).to.equal(3)
+        expect(respond.products[ 0 ].data$()).to.include(products[ 5 ])
+        expect(respond.products[ 1 ].data$()).to.include(products[ 6 ])
+        expect(respond.products[ 2 ].data$()).to.include(products[ 7 ])
+
+        get_products({ status: products[ 9 ].status, query: { sort$: { name: 1 } } }, function (err, respond) {
+          expect(err).not.exist()
+          expect(respond.ok).to.be.true()
+          expect(respond.products.length).to.equal(2)
+          expect(respond.products[ 0 ].data$()).to.include(products[ 8 ])
+          expect(respond.products[ 1 ].data$()).to.include(products[ 9 ])
+          done()
+        })
+      })
+    })
+  })
+
+  it('can get products active by single field', function (done) {
+    get_products({ cost: products[ 0 ].cost , query: { sort$: { name: 1 } }}, function (err, respond) {
+      expect(err).not.exist()
+      expect(respond.ok).to.be.true()
+      expect(respond.products.length).to.equal(4)
+      expect(respond.products[ 0 ].data$()).to.include(products[ 0 ])
+      expect(respond.products[ 1 ].data$()).to.include(products[ 1 ])
+      expect(respond.products[ 2 ].data$()).to.include(products[ 10 ])
+      expect(respond.products[ 3 ].data$()).to.include(products[ 11 ])
+      done()
+    })
+  })
+
+  it('can get products active by multiple field', function (done) {
+    get_products({ cost: products[ 0 ].cost, status: products[ 0 ].status }, function (err, respond) {
+      expect(err).not.exist()
+      expect(respond.ok).to.be.true()
+      expect(respond.products.length).to.equal(4)
+
+      get_products({ price: products[ 6 ].price, status: products[ 6 ].status }, function (err, respond) {
+        expect(err).not.exist()
+        expect(respond.ok).to.be.true()
+        expect(respond.products.length).to.equal(2)
+
+        get_products(products[ 9 ], function (err, respond) {
+          expect(err).not.exist()
+          expect(respond.ok).to.be.true()
+          expect(respond.products[ 0 ].data$()).to.include(products[ 9 ])
+          done()
+        })
+      })
+    })
+  })
+
+  it('can find by query use sort$', function (done) {
+    get_products({ query: { cost: 20000, sort$: { name: -1 } } }, function (err, respond) {
+      expect(err).not.exist()
+      expect(respond.ok).to.be.true()
+      expect(respond.products[ 0 ].data$()).to.include(products[ 3 ])
+      expect(respond.products[ 1 ].data$()).to.include(products[ 2 ])
+      done()
+    })
+  })
+
+  it('can find by query use sort$ and limit$', function (done) {
+    get_products({ query: { cost: 10000, sort$: { name: -1 }, limit$: 2 } }, function (err, respond) {
+      expect(err).not.exist()
+      expect(respond.ok).to.be.true()
+      expect(respond.products[ 0 ].data$()).to.include(products[ 11 ])
+      expect(respond.products[ 1 ].data$()).to.include(products[ 10 ])
+      done()
+    })
+  })
+})
